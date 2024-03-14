@@ -3,12 +3,14 @@ import logging
 from zaber_motion.ascii import Axis, Lockstep
 from zaber_motion import Units
 from asyncua import Server, ua
+from asyncua.common.methods import uamethod
 
 #from zaber import init_zaber
 from zaber_test import init_zaber
 
 REFRESH_RATE = 0.5
 
+@uamethod
 def set_pos_slide(_, axis: Lockstep|Axis, value: float) -> bool:
     try:
         axis.stop()
