@@ -6,8 +6,11 @@ class TestAxis:
     def get_position(self) -> float:
         return 10.
 
-    def move_absolute(self, *args, **kwargs):
+    def move_absolute(self, val, type):
         return
+
+    def stop(self): 
+        pass
 
 def init_zaber() -> tuple:
     return (TestAxis(), TestAxis())
