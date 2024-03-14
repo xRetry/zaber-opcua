@@ -10,6 +10,19 @@
         pkgs = import nixpkgs {
             inherit system;
         };
+        zaber-motion-bindings = pkgs.python3Packages.buildPythonPackage rec {
+            pname = "zaber_motion_bindings_linux";
+            version = "5.1.1";
+            src = pkgs.fetchPypi {
+                inherit pname version;
+                sha256 = "sha256-Wub2OQDGmFfqeqQtxeaoeE+/mTVdDHSjbVc7bQkCuC8=";
+            };
+            doCheck = false;
+            propagatedBuildInputs = with pkgs.python3Packages; [
+                setuptools
+                wheel
+            ];       
+        };
         zaber-motion = pkgs.python3Packages.buildPythonPackage rec {
             pname = "zaber_motion";
             version = "5.1.1";
@@ -21,6 +34,8 @@
             propagatedBuildInputs = with pkgs.python3Packages; [
                 setuptools
                 wheel
+                protobuf
+                rx
             ];       
         };
     in rec {
@@ -30,6 +45,7 @@
             (python311.withPackages(ps: with ps; [
                 zaber-motion
                 asyncua
+                zaber-motion-bindings
 
             ]))
             nodePackages.pyright
