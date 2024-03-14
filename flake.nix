@@ -49,6 +49,7 @@
 
             ]))
             nodePackages.pyright
+            opcua-client-gui
           ]);
           runScript = "bash";
         }).env;
