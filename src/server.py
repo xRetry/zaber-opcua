@@ -10,7 +10,6 @@ from zaber_test import init_zaber
 
 REFRESH_RATE = 0.5
 
-@uamethod
 def set_pos_slide(_, axis: Lockstep|Axis, value: float) -> bool:
     try:
         axis.stop()
@@ -21,8 +20,8 @@ def set_pos_slide(_, axis: Lockstep|Axis, value: float) -> bool:
 
 async def run_opcua_server():
     slide_long, slide_cross = init_zaber()
-    set_pos_slide_long = lambda parent, val: set_pos_slide(parent, slide_long, val)
-    set_pos_slide_cross = lambda parent, val: set_pos_slide(parent, slide_cross, val)
+    set_pos_slide_long = uamethod(lambda parent, val: set_pos_slide(parent, slide_long, val))
+    set_pos_slide_cross = uamethod(lambda parent, val: set_pos_slide(parent, slide_cross, val))
 
     logging.basicConfig(level=logging.DEBUG)
     _logger = logging.getLogger(__name__)
