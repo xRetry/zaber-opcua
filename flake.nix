@@ -38,16 +38,36 @@
                 rx
             ];       
         };
-    in rec {
-        devShell = (pkgs.buildFHSUserEnv {
-          name = "py_env";
-          targetPkgs = pkgs: (with pkgs; [
-            (python311.withPackages(ps: with ps; [
+        python-env = pkgs.python311.withPackages(ps: with ps; [
                 zaber-motion
                 asyncua
                 zaber-motion-bindings
 
-            ]))
+        ]);
+        zaber-opcua = pkgs.stdenv.mkDerivation rec {
+            name = "zaber-opcua";
+            src = ./.;
+            buildInputs = [ python-env ];
+            env = pkgs.buildEnv { name = name; paths = buildInputs; };
+            binScript = ''
+                #!${pkgs.runtimeShell}
+                ${python-env}/bin/python ${placeholder "out"}/src/main.py
+            '';
+            passAsFile = [ "binScript" ];
+            installPhase = ''
+                mkdir -p $out/bin
+                cp -r ./. $out/
+                cp $binScriptPath $out/bin/zaber-opcua
+                chmod +x $out/bin/zaber-opcua
+            '';
+        };
+
+    in rec {
+        packages.default = zaber-opcua;
+        devShell = (pkgs.buildFHSUserEnv {
+          name = "py_env";
+          targetPkgs = pkgs: (with pkgs; [
+            python-env
             nodePackages.pyright
             opcua-client-gui
           ]);
