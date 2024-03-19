@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from typing import Union
 from zaber_motion.ascii import Axis, Lockstep
 from zaber_motion import Units
 from asyncua import Server, ua
@@ -10,7 +11,7 @@ from zaber_test import init_zaber
 
 REFRESH_RATE = 0.5
 
-def set_pos_slide(_, axis: Lockstep|Axis, value: float) -> bool:
+def set_pos_slide(_, axis: Union[Lockstep, Axis], value: float) -> bool:
     try:
         axis.stop()
         axis.move_absolute(value, Units.LENGTH_MILLIMETRES, wait_until_idle=False)
