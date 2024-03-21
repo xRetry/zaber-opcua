@@ -10,6 +10,7 @@
         pkgs = import nixpkgs {
             inherit system;
         };
+        dontCheckPython = drv: drv.overridePythonAttrs (old: { doCheck = false; });
         zaber-motion-bindings = pkgs.python39Packages.buildPythonPackage rec {
             pname = "zaber_motion_bindings_linux";
             version = "5.1.1";
@@ -34,7 +35,7 @@
             propagatedBuildInputs = with pkgs.python39Packages; [
                 setuptools
                 wheel
-                protobuf
+                (dontCheckPython protobuf)
                 rx
             ];       
         };
