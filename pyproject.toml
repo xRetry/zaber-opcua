@@ -1,0 +1,22 @@
+[project]
+name = "zaber_opcua"
+version = "1.0.0"
+authors = [
+  { name="Marco Schwarz", email="marco.swz@hotmail.com" },
+]
+description = "An interface exposing Zaber controls via OPC-UA"
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/xRetry/zaber-opcua"
+Issues = "https://github.com/xRetry/zaber-opcua/issues"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
