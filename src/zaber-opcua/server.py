@@ -1,18 +1,15 @@
 import asyncio
 import logging
-from asyncua import Server, ua
+from asyncua import Server
 
-from constants import *
-from slide_actions import *
-#from zaber import init_zaber
-from zaber_dummy import init_zaber
-
+from settings import *
+from slides import init_zaber, SlideNode
 
 async def run_opcua_server():
-    slide_parallel, slide_cross = init_zaber()
-
-    logging.basicConfig(level=LOG_LEVEL)
+    logging.basicConfig(level=OPCUA_LOG_LEVEL)
     _logger = logging.getLogger(__name__)
+
+    _logger.debug("Initializing OPC-UA server")
 
     server = Server()
     await server.init()
@@ -20,43 +17,25 @@ async def run_opcua_server():
 
     idx = await server.register_namespace(OPCUA_NAMESPACE)
 
-    var_slide_parallel_pos, var_slide_parallel_busy = await init_slide_object(
-        server=server, 
-        idx=idx, 
-        name="Parallel Slide", 
-        slide=slide_parallel
-    )
-    var_slide_cross_pos, var_slide_cross_busy = await init_slide_object(
-        server=server, 
-        idx=idx, 
-        name="Cross Slide", 
-        slide=slide_cross
-    )
+    _logger.info("OPC-UA server successfully initialized")
 
-    _logger.info("Starting server!")
+    axis_parallel, axis_cross = None, None
+    try:
+        axis_parallel, axis_cross = init_zaber()
+    except Exception as e:
+        _logger.error(e)
+
+    slide_parallel = await SlideNode.new(server, idx, "Parallel Slide", axis_parallel)
+    slide_cross = await SlideNode.new(server, idx, "Cross Slide", axis_cross)
+
+    _logger.info("Init successful. Starting server.")
+
     async with server:
         while True:
             await asyncio.sleep(OPCUA_REFRESH_TIME)
 
-            await server.write_attribute_value(
-                var_slide_parallel_pos.nodeid, 
-                ua.DataValue(slide_long.get_position()) # pyright: ignore
-            )
-
-            await server.write_attribute_value(
-                var_slide_parallel_busy.nodeid, 
-                ua.DataValue(slide_parallel.is_busy()) # pyright: ignore
-            )
-
-            await server.write_attribute_value(
-                var_slide_cross_pos.nodeid, 
-                ua.DataValue(slide_cross.get_position()) # pyright: ignore
-            )
-
-            await server.write_attribute_value(
-                var_slide_cross_busy.nodeid, 
-                ua.DataValue(slide_cross.is_busy()) # pyright: ignore
-            )
+            await slide_parallel.update_variables()
+            await slide_cross.update_variables()
 
 if __name__ == "__main__":
     pass
