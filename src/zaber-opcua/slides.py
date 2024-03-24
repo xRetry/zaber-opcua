@@ -143,7 +143,7 @@ class SlideNode:
     @staticmethod
     async def new(server: Server, idx: int, name: str, fn_init: Callable[[], Slide]):
         node = SlideNode()
-        node.axis = fn_init()
+        node.axis = None # Gets initialized in event loop
         node.server = server
         node.position = 0
         node.busy = False
