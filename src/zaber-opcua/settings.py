@@ -30,3 +30,6 @@ if level is not None:
 # The serial port of the Zaber controller
 ZABER_SERIAL_PORT = os.environ.get('ZABER_SERIAL_PORT', '/dev/ttyUSB0')
 
+# The time to wait before trying to reconnect to the zaber controller
+ZABER_RECONNECT_TIMEOUT = 10
+

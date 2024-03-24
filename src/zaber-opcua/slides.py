@@ -1,33 +1,57 @@
-from typing import Union, Optional
+from typing import Union, Optional, Callable
 from zaber_motion import Units
 from zaber_motion.ascii import Axis, Connection, Lockstep
 from asyncua.common.methods import uamethod
 from asyncua import Server, ua, Node
+import time
 
 from settings import *
 
 Slide = Optional[Union[Axis, Lockstep]]
 
-def init_zaber() -> tuple[Lockstep, Axis]:
-    connection = Connection.open_serial_port(ZABER_SERIAL_PORT)
-    connection.enable_alerts()
+def zaber_init_functions() -> tuple[Callable[[], Optional[Lockstep]], Callable[[], Optional[Axis]]]:
+    connection = None
 
-    device_list = connection.detect_devices()
+    def init_connection(conn: Optional[Connection]):
+        if conn is None:
+            try:
+                conn = Connection.open_serial_port(ZABER_SERIAL_PORT)
+                conn.enable_alerts()
+            except Exception:
+                conn = None
+            return conn
 
-    controller_parallel = device_list[0]
-    controller_cross = device_list[1]
+    def init_slide_parallel(conn: Optional[Connection]) -> Optional[Lockstep]:
+        conn = init_connection(conn)
+        if conn is None:
+            return None
 
-    lockstep = controller_parallel.get_lockstep(1)
-    if lockstep.is_enabled():
-        lockstep.disable()
+        device_list = conn.detect_devices()
 
-    controller_parallel.all_axes.home()
-    controller_cross.all_axes.home()
+        controller_parallel = device_list[0]
 
-    lockstep.enable(1, 2)
-    axis_cross = controller_cross.get_axis(1)
+        lockstep = controller_parallel.get_lockstep(1)
+        if lockstep.is_enabled():
+            lockstep.disable()
 
-    return (lockstep, axis_cross)
+        controller_parallel.all_axes.home()
+        lockstep.enable(1, 2)
+        return lockstep
+
+    def init_slide_cross(conn: Optional[Connection]) -> Optional[Axis]:
+        conn = init_connection(conn)
+        if conn is None:
+            return None
+
+        device_list = conn.detect_devices()
+        controller_cross = device_list[1]
+        controller_cross.all_axes.home()
+        axis_cross = controller_cross.get_axis(1)
+
+        return axis_cross
+
+    return lambda: init_slide_parallel(connection), lambda: init_slide_cross(connection)
+
 
 def capture_exceptions(func, *args, **kwargs) -> ua.DataValue:
     try:
@@ -107,21 +131,24 @@ def slide_move_min(_, axis: Slide, vel: float, acc: float) -> None:
 
 class SlideNode:
     server: Server
-    zaber_conn: Connection
+    fn_init: Callable[[], Slide]
     axis: Slide
     node_status: Node
     node_position: Node
     node_busy: Node
     position: float
     busy: bool
+    last_attempt: float
 
     @staticmethod
-    async def new(server: Server, idx: int, name: str, axis: Slide):
+    async def new(server: Server, idx: int, name: str, fn_init: Callable[[], Slide]):
         node = SlideNode()
-        node.axis = axis
+        node.axis = fn_init()
         node.server = server
         node.position = 0
         node.busy = False
+        node.last_attempt = -1e5
+        node.fn_init = fn_init
 
         obj = await server.nodes.objects.add_object(idx, name)
 
@@ -277,9 +304,15 @@ class SlideNode:
                     ua.DataValue(ua.Variant(self.position, ua.VariantType.Double)) 
                 )
         else:
-            # TODO(marco): Figure out reconnection strategy
-            pass
-
+            cur_time = time.perf_counter()
+            if cur_time - self.last_attempt > ZABER_RECONNECT_TIMEOUT:
+                self.last_attempt = cur_time
+                self.axis = self.fn_init()
+                if self.axis is not None:
+                    await self.server.write_attribute_value(
+                        self.node_status,
+                        ua.DataValue(ua.Variant('Ok', ua.VariantType.String))
+                    )
 
 if __name__ == "__main__":
     pass

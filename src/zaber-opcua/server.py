@@ -3,7 +3,7 @@ import logging
 from asyncua import Server
 
 from settings import *
-from slides import init_zaber, SlideNode
+from slides import zaber_init_functions, SlideNode
 
 async def run_opcua_server():
     logging.basicConfig(level=OPCUA_LOG_LEVEL)
@@ -17,18 +17,13 @@ async def run_opcua_server():
 
     idx = await server.register_namespace(OPCUA_NAMESPACE)
 
-    _logger.info("OPC-UA server successfully initialized")
+    _logger.debug("OPC-UA server successfully initialized")
 
-    axis_parallel, axis_cross = None, None
-    try:
-        axis_parallel, axis_cross = init_zaber()
-    except Exception as e:
-        _logger.error(e)
+    fn_init_parallel, fn_init_cross = zaber_init_functions()
+    slide_parallel = await SlideNode.new(server, idx, "Parallel Slide", fn_init_parallel)
+    slide_cross = await SlideNode.new(server, idx, "Cross Slide", fn_init_cross)
 
-    slide_parallel = await SlideNode.new(server, idx, "Parallel Slide", axis_parallel)
-    slide_cross = await SlideNode.new(server, idx, "Cross Slide", axis_cross)
-
-    _logger.info("Init successful. Starting server.")
+    _logger.info("Init successful. Starting server...")
 
     async with server:
         while True:
