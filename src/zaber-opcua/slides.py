@@ -307,7 +307,10 @@ class SlideNode:
             cur_time = time.perf_counter()
             if cur_time - self.last_attempt > ZABER_RECONNECT_TIMEOUT:
                 self.last_attempt = cur_time
-                self.axis = self.fn_init()
+                try:
+                    self.axis = self.fn_init()
+                except Exception:
+                    pass
                 if self.axis is not None:
                     await self.server.write_attribute_value(
                         self.node_status,

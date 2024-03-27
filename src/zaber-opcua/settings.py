@@ -14,7 +14,7 @@ OPCUA_IP = os.environ.get('OPCUA_IP', '0.0.0.0')
 OPCUA_PORT = os.environ.get('OPCUA_PORT', 4840)
 
 # The level for logging
-OPCUA_LOG_LEVEL = logging.WARN
+OPCUA_LOG_LEVEL = logging.DEBUG
 level = os.environ.get('OPCUA_LOG_LEVEL')
 if level is not None:
     level = level.upper()
@@ -28,8 +28,8 @@ if level is not None:
         OPCUA_LOG_LEVEL = logging.FATAL
 
 # The serial port of the Zaber controller
-ZABER_SERIAL_PORT = os.environ.get('ZABER_SERIAL_PORT', '/dev/ttyUSB0')
+ZABER_SERIAL_PORT = os.environ.get('ZABER_SERIAL_PORT', '/dev/ttyACM0')
 
 # The time to wait before trying to reconnect to the zaber controller
-ZABER_RECONNECT_TIMEOUT = os.environ.get('ZABER_RECONNECT_TIMEOUT', 10)
+ZABER_RECONNECT_TIMEOUT = float(os.environ.get('ZABER_RECONNECT_TIMEOUT', 10))
 

@@ -13,7 +13,7 @@ async def run_opcua_server():
 
     server = Server()
     await server.init()
-    server.set_endpoint(f"opc.tcp://{OPCUA_IP}:{OPCUA_PORT}/opcua/")
+    server.set_endpoint(f"opc.tcp://{OPCUA_IP}:{OPCUA_PORT}/")
 
     idx = await server.register_namespace(OPCUA_NAMESPACE)
 
