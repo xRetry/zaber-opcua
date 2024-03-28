@@ -2,7 +2,7 @@
 
 This project deploys an OPC-UA server for controlling the slide axes connected to a Zaber controller.
 The server acts as middleware, translating messages from OPC-UA clients to the Zaber specific communication protocol.
-It provides OPC-UA methods for controlling the axes and publishes TODO
+It provides methods for controlling the axes and publishes measurement values.
 
 ## Hardware
 
@@ -20,7 +20,7 @@ The OPC-UA server is written in Python and runs on a Raspberry Pi.
 
 The Raspberry Pi is running Raspberry Pi OS Lite.
 Its static IP address is `193.171.191.15`.
-To connect via SSH, run
+To connect via SSH, run:
 
 ```sh
 ssh root@193.171.191.15
@@ -71,7 +71,7 @@ To find the correct device:
 
 4. Run `ls /dev` again and check which device is new
 
-Then, run the following command to grant read/write acces to all users:
+Then, run the following command to grant read/write access to all users:
 
 ```sh
 sudo chmod a+rw /dev/<device>
