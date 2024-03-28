@@ -288,7 +288,7 @@ class SlideNode:
             - the value has changed
         """
         if self.axis is not None:
-            busy = self.busy
+            busy = self.axis.is_busy()
             if busy != self.busy:
                 self.busy = busy
                 await self.server.write_attribute_value(
@@ -309,13 +309,13 @@ class SlideNode:
                 self.last_attempt = cur_time
                 try:
                     self.axis = self.fn_init()
-                except Exception:
-                    pass
-                if self.axis is not None:
+
                     await self.server.write_attribute_value(
                         self.node_status,
                         ua.DataValue(ua.Variant('Ok', ua.VariantType.String))
                     )
+                except Exception:
+                    pass
 
 if __name__ == "__main__":
     pass
