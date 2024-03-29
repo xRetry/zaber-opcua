@@ -1,62 +1,64 @@
 from typing import Union, Optional, Callable
-from zaber_motion import Units
+from zaber_motion import Units, ConnectionFailedException, ConnectionClosedException, TimeoutException
 from zaber_motion.ascii import Axis, Connection, Lockstep
 from asyncua.common.methods import uamethod
 from asyncua import Server, ua, Node
+from logging import Logger
 import time
 
 from settings import *
 
 Slide = Optional[Union[Axis, Lockstep]]
 
-def zaber_init_functions() -> tuple[Callable[[], Optional[Lockstep]], Callable[[], Optional[Axis]]]:
-    connection = None
+# Only used within `init_connection`, to store connection state
+zaber_conn = None
 
-    def init_connection(conn: Optional[Connection]):
-        if conn is None:
-            try:
-                conn = Connection.open_serial_port(ZABER_SERIAL_PORT)
-                conn.enable_alerts()
-            except Exception:
-                conn = None
-            return conn
+def init_connection() -> Optional[Connection]:
+    global zaber_conn
+    if zaber_conn is None:
+        try:
+            zaber_conn = Connection.open_serial_port(ZABER_SERIAL_PORT)
+            zaber_conn.enable_alerts()
+        except Exception as e:
+            zaber_conn = None
+            raise e
+    return zaber_conn
 
-    def init_slide_parallel(conn: Optional[Connection]) -> Optional[Lockstep]:
-        conn = init_connection(conn)
-        if conn is None:
-            return None
+def init_slide_parallel() -> Optional[Lockstep]:
+    conn = init_connection()
+    if conn is None:
+        return None
 
-        device_list = conn.detect_devices()
+    device_list = conn.detect_devices()
 
-        controller_parallel = device_list[0]
+    controller_parallel = device_list[0]
 
-        lockstep = controller_parallel.get_lockstep(1)
-        if lockstep.is_enabled():
-            lockstep.disable()
+    lockstep = controller_parallel.get_lockstep(1)
+    if lockstep.is_enabled():
+        lockstep.disable()
 
-        controller_parallel.all_axes.home()
-        lockstep.enable(1, 2)
-        return lockstep
+    controller_parallel.all_axes.home()
+    lockstep.enable(1, 2)
+    return lockstep
 
-    def init_slide_cross(conn: Optional[Connection]) -> Optional[Axis]:
-        conn = init_connection(conn)
-        if conn is None:
-            return None
+def init_slide_cross() -> Optional[Axis]:
+    conn = init_connection()
+    if conn is None:
+        return None
 
-        device_list = conn.detect_devices()
-        controller_cross = device_list[1]
-        controller_cross.all_axes.home()
-        axis_cross = controller_cross.get_axis(1)
+    device_list = conn.detect_devices()
+    controller_cross = device_list[1]
+    controller_cross.all_axes.home()
+    axis_cross = controller_cross.get_axis(1)
 
-        return axis_cross
-
-    return lambda: init_slide_parallel(connection), lambda: init_slide_cross(connection)
+    return axis_cross
 
 
 def capture_exceptions(func, *args, **kwargs) -> ua.DataValue:
     try:
         func(*args, **kwargs)
     except Exception as e:
+        print(e)
         return ua.DataValue(
             Value=ua.Variant(str(e), ua.VariantType.String),
             StatusCode_=ua.StatusCode(ua.StatusCodes.Bad), # pyright: ignore
@@ -133,6 +135,7 @@ class SlideNode:
     server: Server
     fn_init: Callable[[], Slide]
     axis: Slide
+    logger: Logger
     node_status: Node
     node_position: Node
     node_busy: Node
@@ -141,7 +144,7 @@ class SlideNode:
     last_attempt: float
 
     @staticmethod
-    async def new(server: Server, idx: int, name: str, fn_init: Callable[[], Slide]):
+    async def new(server: Server, idx: int, name: str, fn_init: Callable[[], Slide], logger: Logger):
         node = SlideNode()
         node.axis = None # Gets initialized in event loop
         node.server = server
@@ -149,6 +152,7 @@ class SlideNode:
         node.busy = False
         node.last_attempt = -1e5
         node.fn_init = fn_init
+        node.logger = logger
 
         obj = await server.nodes.objects.add_object(idx, name)
 
@@ -287,35 +291,56 @@ class SlideNode:
             - the axis is initialized
             - the value has changed
         """
-        if self.axis is not None:
-            busy = self.axis.is_busy()
-            if busy != self.busy:
-                self.busy = busy
-                await self.server.write_attribute_value(
-                    self.node_busy.nodeid, 
-                    ua.DataValue(ua.Variant(self.busy, ua.VariantType.Boolean)) 
-                )
 
-            pos = self.axis.get_position()
-            if pos != self.position:
-                self.position = pos
+        if self.axis is not None:
+            try:
+                busy = self.axis.is_busy()
+                if busy != self.busy:
+                    self.busy = busy
+                    await self.server.write_attribute_value(
+                        self.node_busy.nodeid, 
+                        ua.DataValue(ua.Variant(self.busy, ua.VariantType.Boolean)) 
+                    )
+
+                pos = self.axis.get_position(Units.LENGTH_MILLIMETRES)
+                if pos != self.position:
+                    self.position = pos
+                    await self.server.write_attribute_value(
+                        self.node_position.nodeid,
+                        ua.DataValue(ua.Variant(self.position, ua.VariantType.Double)) 
+                    )
+            except (TimeoutException, ConnectionClosedException, ConnectionFailedException) as e:
+                self.logger.debug('Zaber disconnected', e)
+                self.axis = None
                 await self.server.write_attribute_value(
-                    self.node_position.nodeid,
-                    ua.DataValue(ua.Variant(self.position, ua.VariantType.Double)) 
+                    self.node_status.nodeid,
+                    ua.DataValue(ua.Variant(str(e), ua.VariantType.String))
+                )
+            except Exception as e:
+                await self.server.write_attribute_value(
+                    self.node_status.nodeid,
+                    ua.DataValue(ua.Variant(str(e), ua.VariantType.String))
                 )
         else:
             cur_time = time.perf_counter()
             if cur_time - self.last_attempt > ZABER_RECONNECT_TIMEOUT:
                 self.last_attempt = cur_time
                 try:
+                    self.logger.debug('Attempting Zaber init')
                     self.axis = self.fn_init()
 
                     await self.server.write_attribute_value(
-                        self.node_status,
+                        self.node_status.nodeid,
                         ua.DataValue(ua.Variant('Ok', ua.VariantType.String))
                     )
-                except Exception:
-                    pass
+                    self.logger.debug('Zaber init successful')
+
+                except Exception as e:
+                    self.logger.debug('Zaber init failed', e)
+                    await self.server.write_attribute_value(
+                        self.node_status.nodeid,
+                        ua.DataValue(ua.Variant(str(e), ua.VariantType.String))
+                    )
 
 if __name__ == "__main__":
     pass
