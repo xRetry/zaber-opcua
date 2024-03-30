@@ -33,8 +33,6 @@ The script `/run_zaber_opcua.sh` sets all environment variables and starts the s
 The OPC-UA server automatically restarts after reboots.
 This is done via [crontab](https://wiki.archlinux.org/title/Cron).
 
-TODO(marco): How to check server status
-
 ### OPC-UA Server
 
 An OPC-UA server provides endpoints for other clients to connect to.
