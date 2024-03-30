@@ -10,7 +10,7 @@ The machine contains three axes: Two are placed in parallel and move together, w
 The step motors for the parallel axes are connected a Zaber control unit, which is daisy-chained to a second control unit with the independent axis.
 One control unit is further connected to a Raspberry Pi via USB, which is executing the OPC-UA server.
 
-TODO(marco): Add image
+<img src="axis_diag.png" width="500" />
 
 ## Software
 
