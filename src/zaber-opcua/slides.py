@@ -11,34 +11,37 @@ from settings import *
 Slide = Optional[Union[Axis, Lockstep]]
 
 # Only used within `init_connection`, to store connection state
-zaber_conn = None
+_zaber_conn = None
 
 def init_connection() -> Optional[Connection]:
-    global zaber_conn
-    if zaber_conn is None:
+    global _zaber_conn
+    
+    if _zaber_conn is not None and str(_zaber_conn) == 'Connection 1 (Closed)':
+        _zaber_conn = None
+
+    if _zaber_conn is None:
         try:
-            zaber_conn = Connection.open_serial_port(ZABER_SERIAL_PORT)
-            zaber_conn.enable_alerts()
+            _zaber_conn = Connection.open_serial_port(ZABER_SERIAL_PORT)
+            _zaber_conn.enable_alerts()
         except Exception as e:
-            zaber_conn = None
+            _zaber_conn = None
             raise e
-    return zaber_conn
+    return _zaber_conn
 
 def init_slide_parallel() -> Optional[Lockstep]:
     conn = init_connection()
     if conn is None:
-        return None
+        raise Exception('Connection not initialized')
 
     device_list = conn.detect_devices()
-
     controller_parallel = device_list[0]
-
     lockstep = controller_parallel.get_lockstep(1)
     if lockstep.is_enabled():
         lockstep.disable()
 
     controller_parallel.all_axes.home()
     lockstep.enable(1, 2)
+
     return lockstep
 
 def init_slide_cross() -> Optional[Axis]:
@@ -58,7 +61,6 @@ def capture_exceptions(func, *args, **kwargs) -> ua.DataValue:
     try:
         func(*args, **kwargs)
     except Exception as e:
-        print(e)
         return ua.DataValue(
             Value=ua.Variant(str(e), ua.VariantType.String),
             StatusCode_=ua.StatusCode(ua.StatusCodes.Bad), # pyright: ignore
@@ -310,7 +312,7 @@ class SlideNode:
                         ua.DataValue(ua.Variant(self.position, ua.VariantType.Double)) 
                     )
             except (TimeoutException, ConnectionClosedException, ConnectionFailedException) as e:
-                self.logger.debug('Zaber disconnected', e)
+                self.logger.debug('Zaber disconnected: '+str(e))
                 self.axis = None
                 await self.server.write_attribute_value(
                     self.node_status.nodeid,
@@ -336,7 +338,7 @@ class SlideNode:
                     self.logger.debug('Zaber init successful')
 
                 except Exception as e:
-                    self.logger.debug('Zaber init failed', e)
+                    self.logger.debug('Zaber init failed: '+str(e))
                     await self.server.write_attribute_value(
                         self.node_status.nodeid,
                         ua.DataValue(ua.Variant(str(e), ua.VariantType.String))
