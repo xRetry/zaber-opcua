@@ -43,6 +43,7 @@
                 zaber-motion
                 asyncua
                 zaber-motion-bindings
+                keyboard
                 pip
 
         ]);
