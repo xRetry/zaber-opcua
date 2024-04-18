@@ -1,7 +1,6 @@
 import asyncio
 import logging
 from asyncua import Server, ua
-import keyboard as kb
 
 from settings import *
 from slides import init_slide_cross, init_slide_parallel, SlideNode

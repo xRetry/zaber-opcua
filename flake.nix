@@ -9,6 +9,22 @@
     let
         pkgs = import nixpkgs {
             inherit system;
+            overlays = [
+                (self: super: {
+                    python39 = super.python39.override {
+                        packageOverrides = pyself: pysuper: {
+                            lxml = pysuper.uvloop.overrideAttrs (_: {
+                                doCheck = false;
+                                src =  pysuper.fetchPypi {
+                                    pname = "lxml";
+                                    version = "4.9.3";
+                                    sha256 = "sha256-SGKL1TpCbJ65vAZqkjrKoIeNHoYSn9U1mu6ZKF9O7Zw=";
+                                };
+                            });
+                        };
+                    };
+                })
+            ];
         };
         dontCheckPython = drv: drv.overridePythonAttrs (old: { doCheck = false; });
         zaber-motion-bindings = pkgs.python39Packages.buildPythonPackage rec {
@@ -41,16 +57,21 @@
         };
         python-env = pkgs.python39.withPackages(ps: with ps; [
                 zaber-motion
+                lxml
                 asyncua
                 zaber-motion-bindings
-                keyboard
+                pynput
                 pip
 
         ]);
         zaber-opcua = pkgs.stdenv.mkDerivation rec {
             name = "zaber-opcua";
             src = ./.;
-            buildInputs = [ python-env ];
+            buildInputs = [ 
+                python-env 
+                pkgs.libxml2
+                pkgs.libxslt
+            ];
             env = pkgs.buildEnv { name = name; paths = buildInputs; };
             binScript = ''
                 #!${pkgs.runtimeShell}
@@ -70,9 +91,14 @@
         devShell = (pkgs.buildFHSUserEnv {
           name = "py_env";
           targetPkgs = pkgs: (with pkgs; [
-            python-env
+            #libxml2
+            #libxslt
+            #python-env
             nodePackages.pyright
             opcua-client-gui
+            (python39.withPackages(ps: with ps; [
+                virtualenv
+            ]))
           ]);
           runScript = "bash";
         }).env;
