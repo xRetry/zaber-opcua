@@ -11,7 +11,6 @@ toggle_recording = False
 def handle_mouse_click(x, y, button, pressed):
     global toggle_recording
     if pressed:
-        print('pressed')
         toggle_recording = not toggle_recording
 
 async def run_opcua_server():
@@ -40,17 +39,17 @@ async def run_opcua_server():
 
     logger.debug("Mouse listener successfully initialized")
 
-    obj = await server.nodes.objects.add_object(idx, "Recording")
+    obj = await server.nodes.objects.add_object(idx, "Recording Trigger")
     var_is_recording = await obj.add_variable(
         nodeid=idx, 
-        bname="is recording", 
-        val=0, 
+        bname="recoding", 
+        val=False, 
         varianttype=ua.VariantType.Boolean
     )
+    last_toggle_recording = False
 
     logger.info("Init successful. Starting server...")
 
-    last_toggle_recording = False
     async with server:
         while True:
             await asyncio.sleep(OPCUA_REFRESH_TIME)
@@ -60,9 +59,10 @@ async def run_opcua_server():
 
             # Only send if toggle has changed
             if last_toggle_recording != toggle_recording:
+                logger.debug("Writing recording state")
                 await server.write_attribute_value(
                     var_is_recording.nodeid,
-                    ua.DataValue(ua.Variant(True, ua.VariantType.Boolean))
+                    ua.DataValue(ua.Variant(toggle_recording, ua.VariantType.Boolean))
                 )
                 last_toggle_recording = toggle_recording
 
