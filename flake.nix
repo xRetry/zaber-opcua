@@ -94,12 +94,22 @@
             #libxml2
             #libxslt
             #python-env
+            linuxHeaders
             nodePackages.pyright
             opcua-client-gui
             (python39.withPackages(ps: with ps; [
                 virtualenv
             ]))
           ]);
+          profile = ''
+            if [ ! -d "venv" ]; then
+                virtualenv venv
+                source venv//bin/activate
+                pip install -r requirements.txt
+            else
+                source venv//bin/activate
+            fi
+          '';
           runScript = "bash";
         }).env;
     });
