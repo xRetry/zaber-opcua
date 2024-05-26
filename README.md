@@ -31,7 +31,6 @@ The configuration of the server is done using environment variables.
 The script `/run_zaber_opcua.sh` sets all environment variables and starts the server.
 
 The OPC-UA server automatically restarts after reboots.
-This is done via [crontab](https://wiki.archlinux.org/title/Cron).
 
 ### OPC-UA Server
 
