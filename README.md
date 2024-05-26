@@ -53,6 +53,11 @@ Additionally, the following values are published for each node:
 - `position`: The position of the slide
 - `busy`: `true` if the axis is moving, else `false`
 
+A further node called `Recording Trigger` is provided with the boolean value `recording`.
+It is used to start and stop data recording in ibaPDA.
+To change its value, a mouse needs to be connected to the Raspberry Pi.
+By pressing any mouse button, the signal is toggled between `true` and `false`.
+
 # Setup
 
 ## Device Access
@@ -72,39 +77,36 @@ To find the correct device:
 Then, run the following command to grant read/write access to all users:
 
 ```sh
-sudo chmod a+rw /dev/<device>
+chmod a+rw /dev/<device>
 ```
 
 ## OPC-UA Server
 
-Install Python 3.9 with `pip` (higher versions might work as well)
+1. Install the dependencies:
 
-1. Clone this repository to the directory `/zaber-opcua`
+```sh
+apt-get update && apt-get install -y git python3.9 xorg openbox xserver-xorg-video-dummy
+```
+
+2. Clone this repository to the directory `/zaber-opcua`
 
 ```sh
 git clone https://github.com/xRetry/zaber-opcua /zaber-opcua
 ```
 
-2. Install the required Python packages 
+3. Enable headless mode for X11
+
+```sh
+cp /zaber-opcua/10-headless.conf /etc/X11/xorg.conf.d/
+```
+
+4. Install the required Python packages 
 
 ```sh
 pip install -r /zaber-opcua/requirements.txt
 ```
 
-3. Adjust the settings in `/zaber-opcua/src/zaber-opcua/settings.py` or change them via environment variables.
-
-4. Start the OPC-UA server
-
-```sh
-python /zaber-opcua/src/zaber-opcua/main.py
-```
-
-If the server does not crash after starting, the setup should be ok.
-To be sure, try to connect to the server using an OPC-UA client of your choice (e.g. [UaExpert](https://www.unified-automation.com/products/development-tools/uaexpert.html)).
-
-## Automatic Restart
-
-1. Create a shell script, which sets the environment variables and starts the server
+5. Create a shell script, which sets the environment variables and starts the server
 
 ```sh
 cat > /run_zaber_opcua.sh << EOF
@@ -112,21 +114,28 @@ cat > /run_zaber_opcua.sh << EOF
 export ZABER_SERIAL_PORT=/dev/ttyACM0
 export OPCUA_REFRESH_RATE=0.1
 export OPCUA_LOG_LEVEL=ERROR
+
+startx &
 python /zaber-opcua/src/zaber-opcua/main.py
 EOF
 ```
 
-2. Edit the crontab file
-
+6. Copy the service file to the correct location
 ```sh
-crontab -e
+cp /zaber-opcua/zaber-opcua.service /etc/systemd/system/
 ```
 
-3. Add the following line to crontab:
+7. Start and enable the service
 
 ```sh
-@reboot sh /run_zaber_opcua.sh
+systemctl daemon-reload && systemctl start zaber-opcua.service && sudo systemctl enable zaber-opcua.service
 ```
 
-4. Save and exit the text editor
+After this, the following command should show, that the service is running:
+
+```sh
+systemctl status zaber-opcua.service
+```
+
+To be sure, try to connect to the server using an OPC-UA client of your choice (e.g. [UaExpert](https://www.unified-automation.com/products/development-tools/uaexpert.html)).
 

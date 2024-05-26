@@ -1,0 +1,11 @@
+[Unit]
+Description=Zaber/OPC-UA Interface
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=5
+ExecStart=sh /run_zaber_opcua.sh
+
+[Install]
+WantedBy=multi-user.target
